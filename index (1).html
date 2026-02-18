@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voice Learning Platform - Uganda CBC Curriculum</title>
+    <!-- Load PDF.js from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <!-- Load Mammoth.js for DOCX -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f7fa;
+            --text-primary: #333333;
+            --text-secondary: #666666;
+            --accent: #4a90e2;
+            --accent-hover: #357abd;
+            --border: #e0e0e0;
+            --success: #28a745;
+            --error: #dc3545;
+            --warning: #ffc107;
+            --canvas-bg: #fafafa;
+            --card-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            --audio-playing: #ff6b6b;
+            --uganda: #fcdd09;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #1a1a1a;
+            --bg-secondary: #2d2d2d;
+            --text-primary: #ffffff;
+            --text-secondary: #b0b0b0;
+            --accent: #64b5f6;
+            --accent-hover: #90caf9;
+            --border: #404040;
+            --canvas-bg: #333333;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            transition: background-color 0.3s, color 0.3s;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: var(--bg-primary);
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            border-left: 5px solid var(--uganda);
+        }
+
+        .user-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr 350px;
+            gap: 20px;
+        }
+
+        .sidebar, .assessment-sidebar {
+            background-color: var(--bg-primary);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: var(--card-shadow);
+            height: fit-content;
+        }
+
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin: 15px 0;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        .upload-area:hover {
+            border-color: var(--accent);
+        }
+
+        .upload-area p {
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+        }
+
+        .file-info {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: var(--bg-secondary);
+            border-radius: 5px;
+        }
+
+        .extraction-progress {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: var(--bg-secondary);
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--accent);
+            transition: width 0.3s ease;
+        }
+
+        .control-group {
+            margin: 15px 0;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+        }
+
+        .control-group input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 8px;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .primary-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .primary-btn:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .primary-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .secondary-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: transparent;
+            color: var(--accent);
+            border: 2px solid var(--accent);
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+
+        .voice-btn {
+            padding: 8px 15px;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .voice-btn.active {
+            background-color: var(--success);
+        }
+
+        .voice-btn.playing {
+            background-color: var(--audio-playing);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .audio-controls {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .audio-progress-container {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .audio-progress {
+            width: 100%;
+            height: 8px;
+            background-color: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .audio-progress-fill {
+            height: 100%;
+            background-color: var(--accent);
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        .audio-time {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
+        .canvas-container {
+            background-color: var(--bg-primary);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .canvas-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .canvas-grid {
+            background-color: var(--canvas-bg);
+            border-radius: 10px;
+            min-height: 300px;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .canvas-placeholder {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 50px;
+        }
+
+        .visual-item {
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            animation: fadeIn 0.5s;
+        }
+
+        .visual-item img {
+            max-width: 100%;
+            max-height: 150px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            object-fit: cover;
+        }
+
+        .lesson-section {
+            background-color: var(--bg-primary);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .lesson-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .lesson-content {
+            min-height: 150px;
+            padding: 15px;
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .uganda-badge {
+            background-color: var(--uganda);
+            color: #000;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .competency-badge {
+            background-color: var(--success);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-right: 5px;
+            display: inline-block;
+        }
+
+        .objective-item {
+            padding: 8px;
+            margin: 5px 0;
+            background-color: var(--bg-primary);
+            border-left: 3px solid var(--accent);
+            border-radius: 3px;
+        }
+
+        .audio-script {
+            background-color: var(--bg-primary);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 15px 0;
+            border-left: 4px solid var(--accent);
+            font-style: italic;
+            line-height: 1.8;
+        }
+
+        .audio-script .narration {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .audio-script .question {
+            color: var(--warning);
+            font-weight: bold;
+        }
+
+        .audio-script .emphasis {
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        .audio-script .segment {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: var(--bg-secondary);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .audio-script .segment:hover {
+            transform: translateX(5px);
+        }
+
+        .audio-script .segment.active {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .lesson-section-item {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: var(--bg-primary);
+            border-radius: 8px;
+            border-left: 4px solid var(--accent);
+        }
+
+        .key-terms {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--bg-primary);
+            border-radius: 8px;
+        }
+
+        .term-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 5px;
+            background-color: var(--accent);
+            color: white;
+            border-radius: 15px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .term-badge:hover {
+            transform: scale(1.1);
+        }
+
+        .term-badge.playing {
+            background-color: var(--audio-playing);
+            animation: pulse 1s infinite;
+        }
+
+        .voice-section {
+            background-color: var(--bg-primary);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .voice-input-area {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .text-input {
+            flex: 1;
+            padding: 10px;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            font-family: inherit;
+            min-width: 200px;
+        }
+
+        .text-input:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+
+        .voice-response {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            min-height: 60px;
+        }
+
+        .assessment-tabs {
+            display: flex;
+            gap: 5px;
+            margin: 15px 0;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 8px;
+            background-color: var(--bg-secondary);
+            border: none;
+            color: var(--text-primary);
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .assessment-section {
+            display: none;
+            min-height: 200px;
+            padding: 15px;
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .assessment-section.active {
+            display: block;
+        }
+
+        .quiz-question {
+            background-color: var(--bg-primary);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .quiz-options {
+            margin: 10px 0;
+        }
+
+        .quiz-option {
+            display: block;
+            margin: 8px 0;
+            padding: 10px;
+            background-color: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .quiz-option:hover {
+            background-color: var(--accent);
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .quiz-option.selected {
+            background-color: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        .quiz-option.correct {
+            background-color: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        .quiz-option.incorrect {
+            background-color: var(--error);
+            color: white;
+            border-color: var(--error);
+        }
+
+        .quiz-feedback {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: var(--bg-secondary);
+            border-radius: 5px;
+            border-left: 4px solid var(--accent);
+            animation: fadeIn 0.3s;
+        }
+
+        .scenario-task {
+            background-color: var(--bg-primary);
+            padding: 20px;
+            border-radius: 8px;
+            animation: fadeIn 0.5s;
+        }
+
+        .constraints, .evaluation-criteria {
+            margin: 15px 0;
+            padding: 15px;
+            background-color: var(--bg-secondary);
+            border-radius: 5px;
+        }
+
+        .constraints ul, .evaluation-criteria ul {
+            margin-left: 20px;
+            margin-top: 5px;
+        }
+
+        #scenarioAnswer {
+            width: 100%;
+            padding: 10px;
+            margin: 15px 0;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            font-family: inherit;
+            min-height: 100px;
+            transition: border-color 0.3s;
+        }
+
+        #scenarioAnswer:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+
+        #scenarioFeedback {
+            margin-top: 15px;
+            padding: 15px;
+            background-color: var(--bg-secondary);
+            border-radius: 5px;
+            border-left: 4px solid var(--success);
+            animation: fadeIn 0.3s;
+        }
+
+        .results-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: var(--bg-secondary);
+            border-radius: 8px;
+        }
+
+        .progress-stats {
+            margin: 10px 0;
+        }
+
+        .progress-stats div {
+            margin: 5px 0;
+            padding: 8px;
+            background-color: var(--bg-secondary);
+            border-radius: 5px;
+        }
+
+        .spinner {
+            border: 4px solid var(--bg-secondary);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error-message {
+            background-color: var(--error);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .success-message {
+            background-color: var(--success);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .api-status {
+            font-size: 12px;
+            margin-top: 5px;
+            padding: 5px;
+            border-radius: 3px;
+        }
+
+        .api-status.working {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .api-status.error {
+            background-color: var(--error);
+            color: white;
+        }
+
+        .api-status.warning {
+            background-color: var(--warning);
+            color: black;
+        }
+
+        .preview-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 5px;
+            max-height: 100px;
+            overflow-y: auto;
+            padding: 5px;
+            background-color: var(--bg-primary);
+            border-radius: 3px;
+        }
+
+        .lesson-duration-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: var(--accent);
+            color: white;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .interactive-prompt {
+            background-color: var(--bg-primary);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            border: 2px dashed var(--accent);
+            animation: pulse 2s infinite;
+        }
+
+        .tts-selector {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin: 15px 0;
+        }
+
+        .tts-selector select {
+            flex: 1;
+            padding: 8px;
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+        }
+
+        /* Server access indicator */
+        .server-access-info {
+            text-align: center;
+            padding: 10px;
+            background-color: var(--bg-primary);
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--accent);
+        }
+
+        .server-access-info.success {
+            border-left-color: var(--success);
+        }
+
+        .server-access-info.error {
+            border-left-color: var(--error);
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .user-controls {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🎓 Uganda CBC AI Learning Platform</h1>
+            <div class="user-controls">
+                <span class="uganda-badge">🇺🇬 Competency-Based Curriculum</span>
+                <button id="voiceToggle" class="voice-btn active">🎤 Voice On</button>
+                <button id="themeToggle">🌓 Dark Mode</button>
+            </div>
+        </header>
+
+        <!-- Server Access Status (will be updated by JavaScript) -->
+        <div id="serverAccessInfo" class="server-access-info">
+            ✅ Server access confirmed - Application is running correctly
+        </div>
+
+        <div class="main-layout">
+            <aside class="sidebar">
+                <div class="upload-section">
+                    <h3>📄 Upload Your Notes</h3>
+                    <div class="upload-area" id="uploadArea">
+                        <input type="file" id="fileInput" accept=".txt,.pdf,.doc,.docx" hidden>
+                        <p>📁 Drag & drop or click to upload</p>
+                        <small>✅ Supports: TXT, PDF, DOCX (real text extraction)</small>
+                    </div>
+                    <div id="fileInfo" class="file-info hidden"></div>
+                    <div id="extractionProgress" class="extraction-progress hidden">
+                        <div id="progressMessage">Extracting text...</div>
+                        <div class="progress-bar">
+                            <div id="progressFill" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div id="previewText" class="preview-text hidden"></div>
+                    
+                    <!-- API Status Display -->
+                    <div id="apiStatus" class="api-status">🔄 Testing APIs...</div>
+                </div>
+
+                <div class="lesson-controls">
+                    <h3>⚙️ Lesson Settings</h3>
+                    <div class="control-group">
+                        <label>⏱️ Lesson Duration (minutes):</label>
+                        <input type="range" id="lessonLength" min="5" max="30" value="10" step="1">
+                        <span id="lengthDisplay">10 minutes</span>
+                    </div>
+                    <div class="control-group">
+                        <label>📑 Focus Area (optional):</label>
+                        <input type="text" id="focusArea" placeholder="e.g., key concepts, examples">
+                    </div>
+                    
+                    <!-- TTS Selection -->
+                    <div class="tts-selector">
+                        <label>🔊 Voice Engine:</label>
+                        <select id="ttsEngine">
+                            <option value="web" selected>🌐 Web Speech (Free)</option>
+                            <option value="elevenlabs">✨ ElevenLabs (Premium)</option>
+                        </select>
+                    </div>
+                    
+                    <!-- ElevenLabs API Key (only shown if selected) -->
+                    <div id="elevenlabsConfig" class="control-group hidden">
+                        <label>ElevenLabs API Key:</label>
+                        <input type="password" id="elevenlabsKey" placeholder="Enter your API key">
+                    </div>
+                    
+                    <button id="generateLessonBtn" class="primary-btn" disabled>🎯 Generate CBC Interactive Lesson</button>
+                </div>
+
+                <div class="audio-controls">
+                    <h3>🔊 Audio Player</h3>
+                    <div class="audio-progress-container">
+                        <div class="audio-progress" id="audioProgress">
+                            <div id="audioProgressFill" class="audio-progress-fill"></div>
+                        </div>
+                        <div class="audio-time">
+                            <span id="currentTime">0:00</span>
+                            <span id="totalTime">0:00</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                        <button id="playPauseBtn" class="voice-btn" disabled>▶️ Play</button>
+                        <button id="pauseBtn" class="voice-btn" disabled>⏸️ Pause</button>
+                        <button id="stopBtn" class="voice-btn" disabled>⏹️ Stop</button>
+                        <button id="rewindBtn" class="voice-btn" disabled>⏪ 10s</button>
+                        <button id="forwardBtn" class="voice-btn" disabled>⏩ 10s</button>
+                    </div>
+                    <div id="audioStatus" class="audio-status" style="margin-top: 10px; font-size: 12px;"></div>
+                </div>
+
+                <div class="progress-tracker">
+                    <h3>📊 Your Progress</h3>
+                    <div class="progress-stats">
+                        <div>Lessons Completed: <span id="lessonsDone">0</span></div>
+                        <div>Average Score: <span id="avgScore">0%</span></div>
+                        <div>Total Learning Time: <span id="totalLearningTime">0</span> min</div>
+                        <div>Competencies Mastered: <span id="competenciesMastered">0</span></div>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="content">
+                <div class="canvas-container">
+                    <div class="canvas-header">
+                        <h2>📺 Visual Learning Canvas</h2>
+                        <div class="canvas-controls">
+                            <button id="clearCanvas" class="secondary-btn">Clear</button>
+                            <button id="refreshVisuals" class="secondary-btn">🔄 Refresh</button>
+                        </div>
+                    </div>
+                    <div class="canvas-grid" id="visualCanvas">
+                        <div class="canvas-placeholder">
+                            <p>Upload notes and generate a lesson to see relevant visuals</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lesson-section">
+                    <div class="lesson-header">
+                        <h2>📖 CBC Interactive Lesson Script</h2>
+                        <span id="lessonDuration" class="lesson-duration-badge hidden"></span>
+                    </div>
+                    <div id="lessonContent" class="lesson-content">
+                        <p class="placeholder-text">Your narrated lesson script will appear here...</p>
+                    </div>
+                </div>
+
+                <div class="voice-section">
+                    <h3>💬 Ask the AI Tutor</h3>
+                    <div class="voice-input-area">
+                        <input type="text" id="textQuestionInput" class="text-input" placeholder="Type your question here...">
+                        <button id="askQuestionBtn" class="voice-btn">📤 Ask</button>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <button id="startListeningBtn" class="voice-btn">🎤 Speak Question</button>
+                        <button id="stopListeningBtn" class="voice-btn" disabled>⏹️ Stop</button>
+                        <span id="listeningIndicator" class="hidden">🎧 Listening...</span>
+                    </div>
+                    <div id="voiceResponse" class="voice-response"></div>
+                </div>
+            </main>
+
+            <aside class="assessment-sidebar">
+                <h3>📝 CBC Assessments</h3>
+                
+                <div class="assessment-tabs">
+                    <button class="tab-btn active" data-tab="quiz">🎯 Competency Quiz</button>
+                    <button class="tab-btn" data-tab="scenario">💡 Uganda Scenario</button>
+                </div>
+
+                <div id="quizSection" class="assessment-section active">
+                    <div id="quizContainer">
+                        <p>Generate a lesson first to start the interactive quiz</p>
+                    </div>
+                    <button id="generateQuizBtn" class="secondary-btn">🎲 Generate CBC Quiz</button>
+                </div>
+
+                <div id="scenarioSection" class="assessment-section">
+                    <div id="scenarioContainer">
+                        <p>Real-world Uganda scenarios will appear here</p>
+                    </div>
+                    <button id="generateScenarioBtn" class="secondary-btn">📋 New Uganda Challenge</button>
+                </div>
+
+                <div class="results-section">
+                    <h4>📈 Performance Analytics</h4>
+                    <div id="latestResults">
+                        <p>No data yet</p>
+                    </div>
+                    <div id="weakAreas" class="hidden">
+                        <h5>🎯 Focus Areas:</h5>
+                        <div id="weakAreasList"></div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+        
+        
+      <script src="app.js" defer></script>
+</body>
+</html>           
+  
